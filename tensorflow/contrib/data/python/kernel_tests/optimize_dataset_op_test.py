@@ -17,7 +17,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.contrib.data.python.kernel_tests import dataset_serialization_test_base
 from tensorflow.contrib.data.python.ops import optimization
 from tensorflow.core.framework import graph_pb2
 from tensorflow.python.data.ops import dataset_ops
@@ -72,17 +71,16 @@ class OptimizeDatasetTest(test.TestCase):
       with self.assertRaises(errors.OutOfRangeError):
         sess.run(get_next)
 
+  def testFunctionLibraryDefinitionModification(self):
+    dataset = dataset_ops.Dataset.from_tensors(0).map(lambda x: x).apply(
+        optimization.optimize(["_test_only_function_rename"]))
+    iterator = dataset.make_one_shot_iterator()
+    get_next = iterator.get_next()
 
-class OptimizeDatasetSerializationTest(
-    dataset_serialization_test_base.DatasetSerializationTestBase):
-
-  def testCore(self):
-
-    def build_dataset(num_elements, batch_size):
-      return dataset_ops.Dataset.range(num_elements).map(lambda x: x * x).batch(
-          batch_size).apply(optimization.optimize(["map_and_batch_fusion"]))
-
-    self.run_core_tests(lambda: build_dataset(200, 10), None, 20)
+    with self.test_session() as sess:
+      with self.assertRaisesRegexp(errors.NotFoundError,
+                                   "Function .* is not defined."):
+        sess.run(get_next)
 
 
 if __name__ == "__main__":
