@@ -728,7 +728,12 @@ namespace functor {
       typename TTypes<T>::Matrix d_r_bar, typename TTypes<T>::Matrix d_u_bar,  \
       typename TTypes<T>::Matrix d_h_prevr,                                    \
       typename TTypes<T>::Matrix d_x_comp1_h_prev_comp1,                       \
-      typename TTypes<T>::Matrix d_x_comp2_and_h_prevr);                       \
+      typename TTypes<T>::Matrix d_x_comp2_and_h_prevr,                        \
+      typename TTypes<T>::Matrix x_h_prev,                                     \
+      typename TTypes<T>::Matrix x_h_prevr,																		 \
+      typename TTypes<T>::Matrix w_ru_grad,                                    \
+      typename TTypes<T>::Matrix w_c_grad,																		 \
+      typename TTypes<T>::Vec b_ru_grad, typename TTypes<T>::Vec b_c_grad); 	 \
       extern template struct TensorCopy<GPUDevice, T>;                         \
       extern template struct TensorAdd<GPUDevice, T>;                          \
       extern template struct GRUBlockCellBprop<GPUDevice, T, true>;
