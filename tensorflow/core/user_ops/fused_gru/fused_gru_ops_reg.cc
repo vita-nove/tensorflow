@@ -9,8 +9,6 @@ using shape_inference::InferenceContext;
 using shape_inference::ShapeHandle;
 
 REGISTER_OP("BlockGRU")
-    .Attr("T: {float}")
-    .Input("seq_len_max: int64")
     .Input("x: T")
     .Input("h_prev: T")
     .Input("w_ru: T")
@@ -21,10 +19,12 @@ REGISTER_OP("BlockGRU")
     .Output("u: T")
     .Output("c: T")
     .Output("h: T")
+    .Attr("seq_len_max: int")
+    .Attr("T: {float}")
     .SetShapeFn([](InferenceContext* c) {
       ShapeHandle x, h_prev;
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 3, &x));
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 2, &h_prev));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 3, &x));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 2, &h_prev));
 
       DimensionHandle time_len = c->Dim(x, 0);
       DimensionHandle batch_size = c->Dim(x, 1);
@@ -72,8 +72,6 @@ h = (1-u) \circ c + u \circ h_prev
 )doc");
 
 REGISTER_OP("BlockGRUGrad")
-    .Attr("T: {float}")
-    .Input("seq_len_max: int64")
     .Input("x: T")
     .Input("h_prev: T")
     .Input("w_ru: T")
@@ -91,11 +89,13 @@ REGISTER_OP("BlockGRUGrad")
     .Output("w_c_grad: T")
     .Output("b_ru_grad: T")
     .Output("b_c_grad: T")
+    .Attr("seq_len_max: int")
+    .Attr("T: {float}")
     .SetShapeFn([](InferenceContext* c) {
       ShapeHandle x, h_prev, w_ru;
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 3, &x));
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 2, &h_prev));
-      TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 2, &w_ru));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 3, &x));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 2, &h_prev));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 2, &w_ru));
 
       DimensionHandle batch_size = c->Dim(x, 1);
       DimensionHandle cell_size = c->Dim(h_prev, 1);

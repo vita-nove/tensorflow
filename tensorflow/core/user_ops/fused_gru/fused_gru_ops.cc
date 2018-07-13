@@ -204,13 +204,12 @@ class SliceHelper {
 template <typename Device, typename T, bool USE_CUBLAS>
 class BlockGRUOp : public OpKernel {
  public:
-  explicit BlockGRUOp(OpKernelConstruction* ctx) : OpKernel(ctx) {}
+  explicit BlockGRUOp(OpKernelConstruction* ctx) : OpKernel(ctx) {
+		OP_REQUIRES_OK(ctx, ctx->GetAttr("seq_len_max", &seq_len_max_));
+  }
   void Compute(OpKernelContext* ctx) override {
 
     // Grab the input tensors.
-    const Tensor* seq_len_max_tensor = nullptr;
-    OP_REQUIRES_OK(ctx, ctx->input("seq_len_max", &seq_len_max_tensor));
-
     const Tensor* x = nullptr;
     OP_REQUIRES_OK(ctx, ctx->input("x", &x));
 
@@ -335,11 +334,9 @@ class BlockGRUOp : public OpKernel {
 
     const Device& device = ctx->eigen_device<Device>();
 
-    //const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
-		const int64 seq_len_max = time_len;
     SliceHelper<Device, T> slicer(ctx);
 
-    for (int64 t = 0; t < seq_len_max; ++t) {
+    for (int64 t = 0; t < seq_len_max_; ++t) {
       const Tensor x_tensor = slicer.InputSlice(*x, t, "x");
       const Tensor& h_prev_tensor2 =
           t == 0 ? *h_prev_tensor : slicer.OutputSlice(h_out, t - 1, "h_prev");
@@ -359,12 +356,15 @@ class BlockGRUOp : public OpKernel {
       slicer.FinishTimeStep();
     }
 
-    if (seq_len_max < time_len) {
-      Tensor h_tensor = h_out->Slice(seq_len_max, time_len);
+    if (seq_len_max_ < time_len) {
+      Tensor h_tensor = h_out->Slice(seq_len_max_, time_len);
       functor::TensorUnalignedZero<Device, T>()(
           device, h_tensor.unaligned_flat<float>());
     }
   }
+
+	private:
+	int64 seq_len_max_;
 };
 
 // Register the Block GRU cell kernel for CPU.
@@ -379,12 +379,12 @@ REGISTER_KERNEL(float);
 template <typename Device, typename T, bool USE_CUBLAS>
 class BlockGRUGradOp : public OpKernel {
  public:
-  explicit BlockGRUGradOp(OpKernelConstruction* ctx) : OpKernel(ctx) {}
+  explicit BlockGRUGradOp(OpKernelConstruction* ctx) : OpKernel(ctx) {
+		OP_REQUIRES_OK(ctx, ctx->GetAttr("seq_len_max", &seq_len_max_));
+	}
   void Compute(OpKernelContext* ctx) override {
 
     // Grab input tensors.
-    const Tensor* seq_len_max_tensor = nullptr;
-    OP_REQUIRES_OK(ctx, ctx->input("seq_len_max", &seq_len_max_tensor));
 
     const Tensor* x;
     OP_REQUIRES_OK(ctx, ctx->input("x", &x));
@@ -581,8 +581,6 @@ class BlockGRUGradOp : public OpKernel {
         TensorShape({batch_size, cell_size}), &d_h_tensor));
 
     const Device& device = ctx->eigen_device<Device>();
-    //const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
-    const int64 seq_len_max = time_len;
     SliceHelper<Device, T> slicer(ctx);
 
     functor::TensorZero<Device, T>()(device, h_prev_grad_tensor->flat<float>());
@@ -593,7 +591,7 @@ class BlockGRUGradOp : public OpKernel {
     functor::TensorZero<Device, T>()(device, b_ru_grad_tensor->flat<float>());
     functor::TensorZero<Device, T>()(device, b_c_grad_tensor->flat<float>());
 
-    for (int64 t = seq_len_max - 1; t >= 0; --t) {
+    for (int64 t = seq_len_max_ - 1; t >= 0; --t) {
       const Tensor& x_tensor = slicer.InputSlice(*x, t, "x");
       const Tensor& h_prev_tensor2 =
           t == 0 ? *h_prev_tensor : slicer.InputSlice(*h_out, t - 1, "h_prev");
@@ -630,13 +628,16 @@ class BlockGRUGradOp : public OpKernel {
 
       slicer.FinishTimeStep();
     }
-    if (seq_len_max < time_len) {
-      Tensor x_grad_tensor = x_grad->Slice(seq_len_max, time_len);
+    if (seq_len_max_ < time_len) {
+      Tensor x_grad_tensor = x_grad->Slice(seq_len_max_, time_len);
       functor::TensorUnalignedZero<Device, T>()(
           device, x_grad_tensor.unaligned_flat<T>());
     }
 
   }
+	
+	private:
+	int64 seq_len_max_;
 };
 
 // Register the gradient kernel for CPU.

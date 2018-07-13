@@ -5,6 +5,7 @@ from __future__ import print_function
 import abc
 import os.path as osp
 import tensorflow as tf
+import numpy
 
 from tensorflow.python.framework import ops
 from tensorflow.contrib.util import loader
@@ -33,13 +34,13 @@ _fused_gru_ops_so = tf.load_op_library('./_fused_gru_ops.so')
 @ops.RegisterGradient("BlockGRU")
 def _BlockGRUGrad(op, *grad):
     """Gradient for BlockGRU."""
-    seq_len_max, x, h_prev, w_ru, w_c, b_ru, b_c = op.inputs
+    x, h_prev, w_ru, w_c, b_ru, b_c = op.inputs
     r, u, c, h = op.outputs
     _, _, _, d_h = grad
 
     x_grad, h_prev_grad, w_ru_grad, w_c_grad, b_ru_grad, b_c_grad = _fused_gru_ops_so.block_gru_grad(
-        seq_len_max, x, h_prev, w_ru, w_c, b_ru, b_c, r, u, c, h, d_h)
-    return [None, x_grad, h_prev_grad, w_ru_grad, w_c_grad, b_ru_grad, b_c_grad]
+        x, h_prev, w_ru, w_c, b_ru, b_c, r, u, c, h, d_h, seq_len_max=op.get_attr("seq_len_max"))
+    return [x_grad, h_prev_grad, w_ru_grad, w_c_grad, b_ru_grad, b_c_grad]
 
 
 class GRUBlockWrapper(base_layer.Layer):
@@ -128,7 +129,7 @@ class GRUBlockWrapper(base_layer.Layer):
 
         # create the actual cell
         if sequence_length is not None:
-            sequence_length = ops.convert_to_tensor(sequence_length)
+           sequence_length = ops.convert_to_tensor(sequence_length)
         outputs = self._call_cell(inputs, initial_output, dtype, sequence_length)
 
         if sequence_length is not None:
@@ -252,16 +253,16 @@ class GRUBlockFusedCell(GRUBlockWrapper):
             time_len = array_ops.shape(inputs)[0]
 
         if sequence_length is None:
-            max_seq_len = math_ops.to_int64(time_len)
+            max_seq_len = time_len
         else:
-            max_seq_len = math_ops.to_int64(math_ops.reduce_max(sequence_length))
+            max_seq_len = math_ops.to_int64(math_ops.reduce_max(sequence_length))[0]
 
         _, _, _, h = _fused_gru_ops_so.block_gru(
-            seq_len_max=max_seq_len,
             x=inputs,
             h_prev=initial_output,
             w_ru=self._gate_kernel,
             w_c=self._candidate_kernel,
             b_ru=self._gate_bias,
-            b_c=self._candidate_bias)
+            b_c=self._candidate_bias,
+            seq_len_max=max_seq_len)
         return h
