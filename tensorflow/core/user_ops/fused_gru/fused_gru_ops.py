@@ -4,8 +4,9 @@ from __future__ import print_function
 
 import abc
 import os.path as osp
+import tensorflow as tf
+
 from tensorflow.python.framework import ops
-from plugins.op_compile import OperaterCompiler
 from tensorflow.contrib.util import loader
 from tensorflow.python.framework import dtypes
 from tensorflow.python.layers import base as base_layer
@@ -16,17 +17,18 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import rnn_cell_impl
 from tensorflow.python.platform import resource_loader
 
-compiler = OperaterCompiler('fused_gru', osp.dirname(osp.abspath(__file__)), ['/usr/local'])
-compiler.record_cpu_basis(
-    ['fused_gru_ops.cc', 'fused_gru_ops_reg.cc', 'blas_gemm.cc'],
-    '_fused_gru_ops.so'
-)
-compiler.record_gpu_kernel_builders(
-    ['fused_gru_ops.cu.cc']
-)
+#compiler = OperaterCompiler('fused_gru', osp.dirname(osp.abspath(__file__)), ['/usr/local'])
+#compiler.record_cpu_basis(
+#    ['fused_gru_ops.cc', 'fused_gru_ops_reg.cc', 'blas_gemm.cc'],
+#    '_fused_gru_ops.so'
+#)
+#compiler.record_gpu_kernel_builders(
+#    ['fused_gru_ops.cu.cc']
+#)
+#
+#_fused_gru_ops_so = compiler.compile()
 
-_fused_gru_ops_so = compiler.compile()
-
+_fused_gru_ops_so = tf.load_op_library('./_fused_gru_ops.so')
 
 @ops.RegisterGradient("BlockGRU")
 def _BlockGRUGrad(op, *grad):

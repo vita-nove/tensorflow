@@ -23,7 +23,7 @@ from tensorflow.python.client import timeline
 
 from tensorflow.python.platform import test
 
-from plugins.fused_gru import fused_gru_ops
+import fused_gru_ops
 
 
 class GRUBlockFusedCellTest(test.TestCase):
@@ -32,7 +32,7 @@ class GRUBlockFusedCellTest(test.TestCase):
             batch_size = 256
             cell_size = 256
             input_size = 256
-            time_steps = 16
+            time_steps = 64
 
             # Random initializers.
             initializer = init_ops.random_uniform_initializer(-0.01, 0.01, seed=19890212)
@@ -82,8 +82,8 @@ class GRUBlockFusedCellTest(test.TestCase):
                     stacked_inputs, dtype=dtypes.float32)
                 sess.run([variables.global_variables_initializer()])
                 xs = [w, b]
-                for _ in range(10):
-                    sess.run(lstm_outputs_op)
+                for _ in range(20):
+                    sess.run(lstm_outputs_op, options=options, run_metadata=run_metadata)
                 t0 = time.time()
                 lstm_outputs = sess.run(lstm_outputs_op,
                                         options=options, run_metadata=run_metadata)
@@ -93,7 +93,7 @@ class GRUBlockFusedCellTest(test.TestCase):
                 with open('lstm_decode.json', 'w') as f:
                     f.write(chrome_trace)
 
-                for _ in range(10):
+                for _ in range(20):
                     sess.run(gradients_impl.gradients(lstm_outputs_op, inputs))
                 t2 = time.time()
                 lstm_grad = sess.run(gradients_impl.gradients(lstm_outputs_op, inputs),
@@ -104,7 +104,7 @@ class GRUBlockFusedCellTest(test.TestCase):
                 with open('lstm_grad.json', 'w') as f:
                     f.write(chrome_trace)
 
-                for _ in range(10):
+                for _ in range(20):
                     sess.run(gradients_impl.gradients(lstm_outputs_op, xs))
                 t4 = time.time()
                 lstm_wgrad = sess.run(gradients_impl.gradients(lstm_outputs_op, xs),
@@ -121,7 +121,7 @@ class GRUBlockFusedCellTest(test.TestCase):
                 sess.run([variables.global_variables_initializer()])
                 xxs = [w_ru, w_c, b_ru, b_c]
 
-                for _ in range(10):
+                for _ in range(20):
                     sess.run(gru_outputs_op)
                 t6 = time.time()
                 gru_outputs = sess.run(gru_outputs_op,
@@ -132,7 +132,7 @@ class GRUBlockFusedCellTest(test.TestCase):
                 with open('gru_decode.json', 'w') as f:
                     f.write(chrome_trace)
 
-                for _ in range(10):
+                for _ in range(20):
                     sess.run(gradients_impl.gradients(gru_outputs_op, inputs))
                 t8 = time.time()
                 gru_grad = sess.run(gradients_impl.gradients(gru_outputs_op, inputs),
@@ -143,7 +143,7 @@ class GRUBlockFusedCellTest(test.TestCase):
                 with open('gru_grad.json', 'w') as f:
                     f.write(chrome_trace)
 
-                for _ in range(10):
+                for _ in range(20):
                     sess.run(gradients_impl.gradients(gru_outputs_op, xxs))
                 t10 = time.time()
                 gru_wgrad = sess.run(gradients_impl.gradients(gru_outputs_op, xxs),

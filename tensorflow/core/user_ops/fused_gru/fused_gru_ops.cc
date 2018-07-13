@@ -335,7 +335,8 @@ class BlockGRUOp : public OpKernel {
 
     const Device& device = ctx->eigen_device<Device>();
 
-    const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
+    //const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
+		const int64 seq_len_max = time_len;
     SliceHelper<Device, T> slicer(ctx);
 
     for (int64 t = 0; t < seq_len_max; ++t) {
@@ -580,7 +581,8 @@ class BlockGRUGradOp : public OpKernel {
         TensorShape({batch_size, cell_size}), &d_h_tensor));
 
     const Device& device = ctx->eigen_device<Device>();
-    const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
+    //const int64 seq_len_max = seq_len_max_tensor->scalar<int64>()();
+    const int64 seq_len_max = time_len;
     SliceHelper<Device, T> slicer(ctx);
 
     functor::TensorZero<Device, T>()(device, h_prev_grad_tensor->flat<float>());
